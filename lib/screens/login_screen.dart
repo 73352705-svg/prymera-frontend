@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _userCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
 
@@ -18,10 +20,17 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() => context.pushReplacement('/dashboard');
+  void _login() {
+    ref.read(authProvider.notifier).login(_userCtrl.text.trim(), _passCtrl.text);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
+    ref.listen<AuthState>(authProvider, (_, state) {
+      if (state.loggedIn) context.pushReplacement('/dashboard');
+    });
+
     return Scaffold(
       body: Center(
         child: Container(
@@ -38,12 +47,20 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(controller: _userCtrl, decoration: const InputDecoration(labelText: 'Usuario', prefixIcon: Icon(Icons.person))),
               const SizedBox(height: 16),
               TextField(controller: _passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Contrasena', prefixIcon: Icon(Icons.lock))),
+              if (auth.error != null) Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(auth.error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+              ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton(onPressed: _login, style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B3670), padding: const EdgeInsets.symmetric(vertical: 16)),
-                  child: const Text('Ingresar', style: TextStyle(fontSize: 16))),
+                child: FilledButton(
+                  onPressed: auth.loading ? null : _login,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF1B3670), padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: auth.loading
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Ingresar', style: TextStyle(fontSize: 16))),
               ),
             ],
           ),
